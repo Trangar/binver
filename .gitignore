@@ -1,0 +1,7 @@
+# General cargo files
+target
+Cargo.lock
+
+# Files created used during development
+/tarpaulin-report.html
+/expanded.rs
