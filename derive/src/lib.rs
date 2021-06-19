@@ -6,7 +6,8 @@ use semver::Version;
 use syn::{
     parse::{Parse, Parser},
     spanned::Spanned,
-    Attribute, Data, DataEnum, DeriveInput, Error, Field, Fields, Ident, Variant,
+    Attribute, Data, DataEnum, DeriveInput, Error, Field, Fields, GenericParam, Generics, Ident,
+    Variant,
 };
 
 #[proc_macro_derive(Serializable, attributes(since))]
@@ -22,13 +23,17 @@ pub fn derive_serializable(item: TokenStream) -> TokenStream {
 
     match input.data {
         Data::Struct(s) => match s.fields {
-            Fields::Named(fields) => derive_serializable_struct_fields(ident, fields.named),
-            Fields::Unnamed(fields) => derive_serializable_struct_fields(ident, fields.unnamed),
+            Fields::Named(fields) => {
+                derive_serializable_struct_fields(ident, input.generics, fields.named)
+            }
+            Fields::Unnamed(fields) => {
+                derive_serializable_struct_fields(ident, input.generics, fields.unnamed)
+            }
             Fields::Unit => Error::new(s.struct_token.span, "Unit structs not supported")
                 .into_compile_error()
                 .into(),
         },
-        Data::Enum(e) => derive_serializable_enum(ident, e),
+        Data::Enum(e) => derive_serializable_enum(ident, input.generics, e),
         Data::Union(_) => Error::new(ident.span(), "Unions not supported")
             .into_compile_error()
             .into(),
@@ -37,12 +42,19 @@ pub fn derive_serializable(item: TokenStream) -> TokenStream {
 
 fn derive_serializable_struct_fields<'a>(
     ident: Ident,
+    generics: Generics,
     fields: impl IntoIterator<Item = Field>,
 ) -> TokenStream {
     let mut ser_impl = Vec::new();
     let mut de_impl = Vec::new();
     let mut idents = Vec::new();
     let mut highest_version = None;
+
+    let generics = match get_generic(generics) {
+        Ok(g) => g,
+        Err(e) => return e.into_compile_error().into(),
+    };
+
     for f in fields {
         let ident = f.ident.unwrap();
         let ty = &f.ty;
@@ -74,12 +86,12 @@ fn derive_serializable_struct_fields<'a>(
     }
 
     (quote! {
-        impl binver::Serializable for #ident {
+        impl<'a> binver::Serializable<'a> for #ident #generics {
             fn serialize(&self, writer: &mut dyn binver::Writer) -> binver::WriteResult {
                 #(#ser_impl)*
                 Ok(())
             }
-            fn deserialize(reader: &mut dyn binver::Reader) -> binver::ReadResult<Self> {
+            fn deserialize(reader: &mut dyn binver::Reader<'a>) -> binver::ReadResult<Self> {
                 let version = reader.version();
                 #(#de_impl)*
                 Ok(Self {
@@ -91,10 +103,15 @@ fn derive_serializable_struct_fields<'a>(
     .into()
 }
 
-fn derive_serializable_enum(ident: Ident, data: DataEnum) -> TokenStream {
+fn derive_serializable_enum(ident: Ident, generics: Generics, data: DataEnum) -> TokenStream {
     let mut ser_impl = Vec::new();
     let mut de_impl = Vec::new();
     let mut highest_version = None;
+
+    let generics = match get_generic(generics) {
+        Ok(g) => g,
+        Err(e) => return e.into_compile_error().into(),
+    };
 
     // We need to validate the following, or we cannot uphold serialization guarantees:
     // 1. If one variant has a discriminant, they all have to have a discriminant
@@ -149,13 +166,13 @@ fn derive_serializable_enum(ident: Ident, data: DataEnum) -> TokenStream {
     }
 
     (quote! {
-        impl binver::Serializable for #ident {
+        impl<'a> binver::Serializable<'a> for #ident #generics {
             fn serialize(&self, writer: &mut dyn binver::Writer) -> binver::WriteResult {
                 match self {
                     #(#ser_impl)*
                 }
             }
-            fn deserialize(reader: &mut dyn binver::Reader) -> binver::ReadResult<Self> {
+            fn deserialize(reader: &mut dyn binver::Reader<'a>) -> binver::ReadResult<Self> {
                 let version = reader.version();
                 let variant = u16::deserialize(reader)?;
                 Ok(match variant {
@@ -166,6 +183,31 @@ fn derive_serializable_enum(ident: Ident, data: DataEnum) -> TokenStream {
         }
     })
     .into()
+}
+
+fn get_generic(generics: Generics) -> Result<proc_macro2::TokenStream, Error> {
+    match generics.params.len() {
+        0 => {
+            // no lifetimes
+            Ok(quote! {})
+        }
+        1 => {
+            match generics.params.first().unwrap() {
+                GenericParam::Lifetime(_) => {
+                    // 1 lifetime, mark it as 'a
+                    Ok(quote! { <'a> })
+                }
+                GenericParam::Type(t) => Err(Error::new(t.span(), "Type parameters not supported")),
+                GenericParam::Const(c) => {
+                    Err(Error::new(c.span(), "Const parameters not supported"))
+                }
+            }
+        }
+        _ => Err(Error::new(
+            generics.params[0].span(),
+            "Only 1 lifetime supported",
+        )),
+    }
 }
 
 struct EnumVariantSerDeResult {
@@ -214,10 +256,10 @@ impl EnumVariantSerDeResult {
                         #ident.serialize(writer)?;
                     });
                     field_deserialize.push(quote! {
-                        let #ident = if version < binver::Version::new(#major, #minor, #patch) {
+                        let #ident: #ty = if version < binver::Version::new(#major, #minor, #patch) {
                             Default::default()
                         } else {
-                            #ty :: deserialize(reader)?
+                            binver::Serializable::deserialize(reader)?
                         };
                     });
                 }
@@ -295,6 +337,8 @@ fn parse_attribute(span: proc_macro2::Span, attr: &[Attribute]) -> Result<Versio
     let content = attr.tokens.to_string();
     let version_str = content.trim_start_matches('(').trim_end_matches(')');
     let version_string = version_str.replace(" ", ""); // sometimes in CI, spaces are inserted. We want to ignore this
-    dbg!(&version_string);
+                                                       // When the version string does not compile, uncomment this
+                                                       // TODO: use pretty_env_logger?
+                                                       // dbg!(&version_string);
     Version::parse(&version_string).map_err(|e| Error::new(attr.tokens.span(), e))
 }
