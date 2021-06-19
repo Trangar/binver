@@ -1,47 +1,43 @@
 use binver::{ReadConfig, Serializable};
 
 #[derive(Serializable, Debug, PartialEq)]
-pub enum Test {
+pub enum Test<'a> {
     #[since(0.0.1)]
     Variant1,
 
     #[since(0.0.2)]
     Variant2 {
         #[since(0.0.3)]
-        name: String,
+        name: &'a str,
     },
 }
 
 #[test]
 fn test_serialize_simple() {
+    let mut serialized = [0u8; 1024];
+
     // serialize a v0.0.3 struct
-    let serialized = binver::to_vec(&Test::Variant1);
+    let length = binver::write_to_slice(&mut serialized, &Test::Variant1);
 
     assert_eq!(
-        &[0, 0],          // Variant 1
-        &serialized[6..]  // ignore the version bytes
+        &[0, 0],                    // Variant 1
+        &serialized[..length][6..]  // ignore the version bytes
     );
-    let serialized = binver::to_vec(&Test::Variant2 {
-        name: String::from("Trangar"),
-    });
+    let length = binver::write_to_slice(&mut serialized, &Test::Variant2 { name: "Trangar" });
     assert_eq!(
         vec![
             0, 1, // Variant2
             0, 0, 0, 7, b'T', b'r', b'a', b'n', b'g', b'a', b'r', // name
         ],
-        &serialized[6..] // ignore the version bytes
+        &serialized[..length][6..] // ignore the version bytes
     );
     let config = ReadConfig {
         error_on_trailing_bytes: true,
     };
 
-    let deserialized: Test = binver::deserialize_slice_with_config(&serialized, config).unwrap();
-    assert_eq!(
-        deserialized,
-        Test::Variant2 {
-            name: String::from("Trangar"),
-        }
-    );
+    let deserialized: Test =
+        binver::deserialize_slice_with_config(&serialized[..length], config).unwrap();
+    assert_eq!(deserialized, Test::Variant2 { name: "Trangar" });
 }
 
 #[test]
@@ -72,12 +68,7 @@ fn test_simple_deserialize() {
     vec.extend_from_slice(&(1u16.to_be_bytes())); // Variant2
 
     let deserialized: Test = binver::deserialize_slice_with_config(&vec, config.clone()).unwrap();
-    assert_eq!(
-        deserialized,
-        Test::Variant2 {
-            name: String::new()
-        }
-    );
+    assert_eq!(deserialized, Test::Variant2 { name: "" });
 
     // variant 2, version 3
     // now name has a value
@@ -91,12 +82,7 @@ fn test_simple_deserialize() {
     vec.extend_from_slice(b"Trangar"); // name
 
     let deserialized: Test = binver::deserialize_slice_with_config(&vec, config.clone()).unwrap();
-    assert_eq!(
-        deserialized,
-        Test::Variant2 {
-            name: String::from("Trangar")
-        }
-    );
+    assert_eq!(deserialized, Test::Variant2 { name: "Trangar" });
 }
 
 #[test]
