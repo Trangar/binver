@@ -17,8 +17,6 @@ fn test_serialize_simple() {
     // serialize a v0.0.3 struct
     let serialized = binver::to_vec(&Test::Variant1);
 
-    let version = &binver::VERSION;
-
     assert_eq!(
         &[0, 0],          // Variant 1
         &serialized[6..]  // ignore the version bytes

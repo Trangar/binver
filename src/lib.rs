@@ -1,5 +1,3 @@
-#![warn(missing_docs)]
-
 mod config;
 mod errors;
 mod helpers;
