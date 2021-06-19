@@ -2,41 +2,36 @@ use binver::{ReadConfig, Serializable};
 
 #[derive(Serializable, Debug, PartialEq)]
 pub enum Test {
-    #[since(1.0.0)]
+    #[since(0.0.1)]
     Variant1,
 
-    #[since(2.0.0)]
+    #[since(0.0.2)]
     Variant2 {
-        #[since(3.0.0)]
+        #[since(0.0.3)]
         name: String,
     },
 }
 
 #[test]
 fn test_serialize_simple() {
-    // serialize a v3.0.0 struct
+    // serialize a v0.0.3 struct
     let serialized = binver::to_vec(&Test::Variant1);
+
+    let version = &binver::VERSION;
+
     assert_eq!(
-        vec![
-            0, 3, // semver major
-            0, 0, // semver minor
-            0, 0, // semver patch
-            0, 0, // Variant1
-        ],
-        serialized
+        &[0, 0],          // Variant 1
+        &serialized[6..]  // ignore the version bytes
     );
     let serialized = binver::to_vec(&Test::Variant2 {
         name: String::from("Trangar"),
     });
     assert_eq!(
         vec![
-            0, 3, // semver major
-            0, 0, // semver minor
-            0, 0, // semver patch
             0, 1, // Variant2
             0, 0, 0, 7, b'T', b'r', b'a', b'n', b'g', b'a', b'r', // name
         ],
-        serialized
+        &serialized[6..] // ignore the version bytes
     );
     let config = ReadConfig {
         error_on_trailing_bytes: true,
@@ -60,9 +55,9 @@ fn test_simple_deserialize() {
 
     // variant 1
     let mut vec = Vec::<u8>::new();
-    vec.extend_from_slice(&(2u16.to_be_bytes())); // semver major
+    vec.extend_from_slice(&(0u16.to_be_bytes())); // semver major
     vec.extend_from_slice(&(0u16.to_be_bytes())); // semver minor
-    vec.extend_from_slice(&(0u16.to_be_bytes())); // semver patch
+    vec.extend_from_slice(&(2u16.to_be_bytes())); // semver patch
 
     vec.extend_from_slice(&(0u16.to_be_bytes())); // Variant1
 
@@ -72,9 +67,9 @@ fn test_simple_deserialize() {
     // variant 2
     // note that field is version 3, so it's always empty
     let mut vec = Vec::<u8>::new();
-    vec.extend_from_slice(&(2u16.to_be_bytes())); // semver major
+    vec.extend_from_slice(&(0u16.to_be_bytes())); // semver major
     vec.extend_from_slice(&(0u16.to_be_bytes())); // semver minor
-    vec.extend_from_slice(&(0u16.to_be_bytes())); // semver patch
+    vec.extend_from_slice(&(2u16.to_be_bytes())); // semver patch
 
     vec.extend_from_slice(&(1u16.to_be_bytes())); // Variant2
 
@@ -89,9 +84,9 @@ fn test_simple_deserialize() {
     // variant 2, version 3
     // now name has a value
     let mut vec = Vec::<u8>::new();
-    vec.extend_from_slice(&(3u16.to_be_bytes())); // semver major
+    vec.extend_from_slice(&(0u16.to_be_bytes())); // semver major
     vec.extend_from_slice(&(0u16.to_be_bytes())); // semver minor
-    vec.extend_from_slice(&(0u16.to_be_bytes())); // semver patch
+    vec.extend_from_slice(&(3u16.to_be_bytes())); // semver patch
 
     vec.extend_from_slice(&(1u16.to_be_bytes())); // Variant2
     vec.extend_from_slice(&(7u32.to_be_bytes())); // name length
@@ -113,9 +108,9 @@ fn test_deserialize_upgrade_version() {
     };
     // Deserialize a v1.0.0 struct into v2.0.0
     let mut vec = Vec::<u8>::new();
-    vec.extend_from_slice(&(1u16.to_be_bytes())); // semver major
+    vec.extend_from_slice(&(0u16.to_be_bytes())); // semver major
     vec.extend_from_slice(&(0u16.to_be_bytes())); // semver minor
-    vec.extend_from_slice(&(0u16.to_be_bytes())); // semver patch
+    vec.extend_from_slice(&(1u16.to_be_bytes())); // semver patch
 
     vec.extend_from_slice(&(0u16.to_be_bytes())); // Variant1
 
@@ -135,9 +130,9 @@ fn test_deserialize_upgrade_unknown_variant() {
     // but we try to deserialize a variant that's being introduced in 2.0.0
     // This should fail
     let mut vec = Vec::<u8>::new();
-    vec.extend_from_slice(&(1u16.to_be_bytes())); // semver major
+    vec.extend_from_slice(&(0u16.to_be_bytes())); // semver major
     vec.extend_from_slice(&(0u16.to_be_bytes())); // semver minor
-    vec.extend_from_slice(&(0u16.to_be_bytes())); // semver patch
+    vec.extend_from_slice(&(1u16.to_be_bytes())); // semver patch
 
     vec.extend_from_slice(&(1u16.to_be_bytes())); // Variant2
     vec.extend_from_slice(&(7u32.to_be_bytes())); // name length

@@ -14,10 +14,6 @@ impl Serializable for Version {
         let patch = u16::deserialize(reader)?;
         Ok(Version::new(major as u64, minor as u64, patch as u64))
     }
-
-    fn highest_version() -> Option<Version> {
-        None
-    }
 }
 
 impl Serializable for String {
@@ -32,8 +28,23 @@ impl Serializable for String {
         reader.read(&mut blob[..len])?;
         String::from_utf8(blob).map_err(ReadError::InvalidUtf8String)
     }
-    fn highest_version() -> Option<Version> {
-        None
+}
+
+impl<T: Serializable> Serializable for Vec<T> {
+    fn serialize(&self, writer: &mut dyn Writer) -> WriteResult {
+        (self.len() as u32).serialize(writer)?;
+        for item in self.iter() {
+            item.serialize(writer)?;
+        }
+        Ok(())
+    }
+    fn deserialize(reader: &mut dyn Reader) -> ReadResult<Self> {
+        let len = u32::deserialize(reader)? as usize;
+        let mut blob = Vec::with_capacity(len);
+        for _ in 0..len {
+            blob.push(T::deserialize(reader)?);
+        }
+        Ok(blob)
     }
 }
 
@@ -51,14 +62,12 @@ macro_rules! impl_numeric {
                     reader.read(&mut bytes[..])?;
                     Ok(Self::from_be_bytes(bytes))
                 }
-
-                fn highest_version() -> Option<Version> { None }
             }
         )*
     }
 }
 
 impl_numeric! {
-    i8, i16, i32, i64, i128,
-    u8, u16, u32, u64, u128
+    i8, i16, i32, i64, i128, isize,
+    u8, u16, u32, u64, u128, usize
 }

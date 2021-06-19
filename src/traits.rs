@@ -4,7 +4,6 @@ use semver::Version;
 pub trait Serializable: Sized {
     fn serialize(&self, writer: &mut dyn Writer) -> WriteResult;
     fn deserialize(reader: &mut dyn Reader) -> ReadResult<Self>;
-    fn highest_version() -> Option<Version>;
 }
 
 pub trait Writer {

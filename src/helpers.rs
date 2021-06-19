@@ -3,8 +3,7 @@ use semver::Version;
 
 pub fn to_vec<T: Serializable>(t: &T) -> Vec<u8> {
     let mut writer = Vec::<u8>::new();
-    let version = T::highest_version().expect("Could not determine structure version");
-    version.serialize(&mut writer).unwrap();
+    crate::VERSION.serialize(&mut writer).unwrap();
     t.serialize(&mut writer).unwrap();
     writer
 }

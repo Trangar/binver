@@ -60,24 +60,18 @@ fn derive_serializable_struct_fields<'a>(
 
         highest_version = match (highest_version.take(), Version::new(major, minor, patch)) {
             (None, v) => Some(v),
-            (Some(v1), v2) => Some(if v1 > v2 { v1 } else { v2})
+            (Some(v1), v2) => Some(if v1 > v2 { v1 } else { v2 }),
         };
 
         de_impl.push(quote! {
             let #ident = if version < ::binver::Version::new(#major, #minor, #patch) {
                 Default::default()
             } else {
-                #ty::deserialize(reader)?
+                <#ty as Serializable>::deserialize(reader)?
             };
         });
         idents.push(ident);
     }
-
-    let highest_version = if let Some(Version { major, minor, patch, ..}) = highest_version {
-        quote! { Some(binver::Version::new(#major, #minor, #patch)) }
-    } else {
-        quote! { None }
-    };
 
     (quote! {
         impl binver::Serializable for #ident {
@@ -91,9 +85,6 @@ fn derive_serializable_struct_fields<'a>(
                 Ok(Self {
                     #(#idents, )*
                 })
-            }
-            fn highest_version() -> Option<binver::Version> {
-                #highest_version
             }
         }
     })
@@ -131,7 +122,7 @@ fn derive_serializable_enum(ident: Ident, data: DataEnum) -> TokenStream {
         };
         highest_version = match (highest_version.take(), version.clone()) {
             (None, v) => Some(v),
-            (Some(v1), v2) => Some(if v1 > v2 { v1 } else { v2})
+            (Some(v1), v2) => Some(if v1 > v2 { v1 } else { v2 }),
         };
 
         if let Some(last) = last_version.replace(version.clone()) {
@@ -143,7 +134,12 @@ fn derive_serializable_enum(ident: Ident, data: DataEnum) -> TokenStream {
             }
         }
 
-        match EnumVariantSerDeResult::construct(index as u16, variant, version, &mut highest_version) {
+        match EnumVariantSerDeResult::construct(
+            index as u16,
+            variant,
+            version,
+            &mut highest_version,
+        ) {
             Ok(EnumVariantSerDeResult { ser, de }) => {
                 ser_impl.push(ser);
                 de_impl.push(de);
@@ -151,12 +147,6 @@ fn derive_serializable_enum(ident: Ident, data: DataEnum) -> TokenStream {
             Err(e) => return e.into_compile_error().into(),
         }
     }
-
-    let highest_version = if let Some(Version { major, minor, patch, ..}) = highest_version {
-        quote! { Some(binver::Version::new(#major, #minor, #patch)) }
-    } else {
-        quote! { None }
-    };
 
     (quote! {
         impl binver::Serializable for #ident {
@@ -173,10 +163,6 @@ fn derive_serializable_enum(ident: Ident, data: DataEnum) -> TokenStream {
                     x => return Err(binver::ReadError::UnknownVariant(variant))
                 })
             }
-
-            fn highest_version() -> Option<binver::Version> {
-                #highest_version
-            }
         }
     })
     .into()
@@ -188,7 +174,12 @@ struct EnumVariantSerDeResult {
 }
 
 impl EnumVariantSerDeResult {
-    fn construct(index: u16, variant: Variant, version: Version, highest_version: &mut Option<Version>) -> Result<Self, Error> {
+    fn construct(
+        index: u16,
+        variant: Variant,
+        version: Version,
+        highest_version: &mut Option<Version>,
+    ) -> Result<Self, Error> {
         let ident = variant.ident;
         let Version {
             major,
@@ -213,10 +204,11 @@ impl EnumVariantSerDeResult {
                         patch,
                         ..
                     } = parse_attribute(ident.span(), &field.attrs)?;
-                    *highest_version = match (highest_version.take(), Version::new(major, minor, patch)) {
-                        (None, v) => Some(v),
-                        (Some(v1), v2) => Some(if v1 > v2 { v1 } else { v2})
-                    };
+                    *highest_version =
+                        match (highest_version.take(), Version::new(major, minor, patch)) {
+                            (None, v) => Some(v),
+                            (Some(v1), v2) => Some(if v1 > v2 { v1 } else { v2 }),
+                        };
                     field_names.push(ident.clone());
                     field_serialize.push(quote! {
                         #ident.serialize(writer)?;
