@@ -20,7 +20,7 @@ fn test_serialize_simple() {
     let length = binver::write_to_slice(&mut serialized, &Test::Variant1);
 
     assert_eq!(
-        &[0, 0],          // Variant 1
+        &[0, 0],                    // Variant 1
         &serialized[..length][6..]  // ignore the version bytes
     );
     let length = binver::write_to_slice(&mut serialized, &Test::Variant2 { name: "Trangar" });

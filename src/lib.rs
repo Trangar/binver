@@ -18,14 +18,12 @@ pub type ReadResult<T = ()> = Result<T, ReadError>;
 pub use self::{
     config::ReadConfig,
     errors::{ReadError, WriteError},
-    helpers::{
-        deserialize_slice, deserialize_slice_with_config, write_to_slice, SliceReader,
-    },
+    helpers::{deserialize_slice, deserialize_slice_with_config, write_to_slice, SliceReader},
     traits::{Reader, Serializable, Writer},
 };
 
 #[cfg(feature = "std")]
-pub use self::helpers::to_vec; 
+pub use self::helpers::to_vec;
 
 lazy_static::lazy_static! {
     #[doc(hidden)]
