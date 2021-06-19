@@ -293,6 +293,8 @@ fn parse_attribute(span: proc_macro2::Span, attr: &[Attribute]) -> Result<Versio
         }
     }
     let content = attr.tokens.to_string();
-    Version::parse(content.trim_start_matches('(').trim_end_matches(')'))
+    let version_str = content.trim_start_matches('(').trim_end_matches(')');
+    println!("Parsing {:?}", version_str);
+    Version::parse(version_str)
         .map_err(|e| Error::new(attr.tokens.span(), e))
 }
