@@ -1,4 +1,4 @@
-use binver::{Serializable, Version};
+use binver::Serializable;
 
 #[derive(Serializable)]
 pub struct Root {

@@ -293,6 +293,8 @@ fn parse_attribute(span: proc_macro2::Span, attr: &[Attribute]) -> Result<Versio
         }
     }
     let content = attr.tokens.to_string();
-    Version::parse(content.trim_start_matches('(').trim_end_matches(')'))
-        .map_err(|e| Error::new(attr.tokens.span(), e))
+    let version_str = content.trim_start_matches('(').trim_end_matches(')');
+    let version_string = version_str.replace(" ", ""); // sometimes in CI, spaces are inserted. We want to ignore this
+    dbg!(&version_string);
+    Version::parse(&version_string).map_err(|e| Error::new(attr.tokens.span(), e))
 }

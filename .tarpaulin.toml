@@ -1,0 +1,5 @@
+[config]
+exclude-files = [
+	"derive/*",
+	"expanded.rs"
+] 
