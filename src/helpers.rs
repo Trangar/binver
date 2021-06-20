@@ -1,11 +1,12 @@
 use crate::{
-    ReadConfig, ReadError, ReadResult, Reader, Serializable, WriteError, WriteResult, Writer,
+    ReadConfig, ReadError, ReadResult, Reader, Serializable, Version, WriteError, WriteResult,
+    Writer,
 };
 #[cfg(feature = "std")]
 use alloc::vec::Vec;
-use semver::Version;
 
 #[cfg(feature = "std")]
+/// Serialize the given `Serialiazable` object to a vec
 pub fn to_vec<'a, T: Serializable<'a>>(t: &T) -> Vec<u8> {
     let mut writer = Vec::<u8>::new();
     crate::VERSION.serialize(&mut writer).unwrap();
@@ -13,18 +14,21 @@ pub fn to_vec<'a, T: Serializable<'a>>(t: &T) -> Vec<u8> {
     writer
 }
 
-pub fn write_to_slice<'a, T: Serializable<'a>>(slice: &mut [u8], t: &T) -> usize {
+/// Serialize the given `Serializable` object to the given slice. The amount of bytes written is returned.
+pub fn write_to_slice<'a, T: Serializable<'a>>(slice: &mut [u8], t: &T) -> WriteResult<usize> {
     let mut writer = SliceWriter { slice, index: 0 };
-    crate::VERSION.serialize(&mut writer).unwrap();
-    t.serialize(&mut writer).unwrap();
+    crate::VERSION.serialize(&mut writer)?;
+    t.serialize(&mut writer)?;
 
-    writer.index
+    Ok(writer.index)
 }
 
+/// Deserialize an object from the given slice.
 pub fn deserialize_slice<'a, T: Serializable<'a>>(slice: &'a [u8]) -> ReadResult<T> {
     deserialize_slice_with_config(slice, ReadConfig::default())
 }
 
+/// Deserialize an object from the given slice with the given `ReadConfig`. See `ReadConfig` for information on the options.
 pub fn deserialize_slice_with_config<'a, T: Serializable<'a>>(
     slice: &'a [u8],
     config: ReadConfig,
@@ -52,7 +56,7 @@ impl Writer for Vec<u8> {
     }
 }
 
-pub struct SliceReader<'a> {
+struct SliceReader<'a> {
     version: Version,
     slice: &'a [u8],
     index: usize,

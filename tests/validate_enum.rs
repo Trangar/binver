@@ -17,13 +17,14 @@ fn test_serialize_simple() {
     let mut serialized = [0u8; 1024];
 
     // serialize a v0.0.3 struct
-    let length = binver::write_to_slice(&mut serialized, &Test::Variant1);
+    let length = binver::write_to_slice(&mut serialized, &Test::Variant1).unwrap();
 
     assert_eq!(
         &[0, 0],                    // Variant 1
         &serialized[..length][6..]  // ignore the version bytes
     );
-    let length = binver::write_to_slice(&mut serialized, &Test::Variant2 { name: "Trangar" });
+    let length =
+        binver::write_to_slice(&mut serialized, &Test::Variant2 { name: "Trangar" }).unwrap();
     assert_eq!(
         vec![
             0, 1, // Variant2
