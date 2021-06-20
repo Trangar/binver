@@ -1,7 +1,6 @@
-use crate::{ReadError, ReadResult, Reader, Serializable, WriteResult, Writer};
+use crate::{ReadError, ReadResult, Reader, Serializable, Version, WriteResult, Writer};
 #[cfg(feature = "std")]
 use alloc::{string::String, vec, vec::Vec};
-use semver::Version;
 
 impl<'a> Serializable<'a> for Version {
     fn serialize(&self, writer: &mut dyn Writer) -> WriteResult {

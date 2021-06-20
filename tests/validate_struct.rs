@@ -16,7 +16,7 @@ fn test_serialize_simple() {
         name: "Trangar",
     };
     let mut serialized = [0u8; 1024];
-    let length = binver::write_to_slice(&mut serialized, &test);
+    let length = binver::write_to_slice(&mut serialized, &test).unwrap();
     assert_eq!(
         vec![
             0, 0, 0, 5, // id
