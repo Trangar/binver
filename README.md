@@ -1,5 +1,7 @@
-![crates.io](https://crates.io/crates/binver)
-![Build status](https://github.com/trangar/binver/actions/workflows/rust.yml/badge.svg)
+[![Crates.io](https://img.shields.io/crates/d/binver)](https://crates.io/crates/binver)
+[![Build status](https://github.com/trangar/binver/actions/workflows/rust.yml/badge.svg)](https://github.com/Trangar/binver/actions)
+[![docs.io](https://docs.rs/binver/badge.svg)](https://docs.rs/binver)
+[![codecov](https://codecov.io/gh/Trangar/binver/branch/main/graph/badge.svg?token=tYaAvN3Oja)](https://codecov.io/gh/Trangar/binver)
 
 # binver
 
