@@ -78,6 +78,16 @@ impl<'a, T: Serializable<'a>> Serializable<'a> for Vec<T> {
     }
 }
 
+impl<'a> Serializable<'a> for bool {
+    fn serialize(&self, writer: &mut dyn Writer) -> WriteResult {
+        (*self as u8).serialize(writer)
+    }
+    fn deserialize(reader: &mut dyn Reader<'a>) -> ReadResult<Self> {
+        let val = u8::deserialize(reader)?;
+        Ok(val == 1)
+    }
+}
+
 macro_rules! impl_numeric {
     ($($ty:ty),*) => {
         $(

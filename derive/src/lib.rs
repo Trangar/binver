@@ -1,6 +1,6 @@
 extern crate proc_macro;
 
-use proc_macro::TokenStream;
+use proc_macro::{TokenStream, Span};
 use quote::quote;
 use semver::Version;
 use syn::{
@@ -282,12 +282,57 @@ impl EnumVariantSerDeResult {
                     },
                 })
             }
-            Fields::Unnamed(_fields) => {
-                // let field_names = fields.unnamed.iter().enumerate().map(|(i, _)| format!("arg_{}", i)).collect::<Vec<_>>();
-                // let field_names = field_names.iter().map(|s| Ident::new(s, Span::call_site())).collect::<Vec<_>>();
-
+            Fields::Unnamed(fields) => {
                 // Enum::Variant(ty, ty),
-                unimplemented!("Fields::Unnamed");
+                // Enum::Variant { a: ty, b: ty }
+                let mut field_names = Vec::new();
+                let mut field_serialize = Vec::new();
+                let mut field_deserialize = Vec::new();
+
+                for (idx, field) in fields.unnamed.into_iter().enumerate() {
+                    let ident = Ident::new(&format!("p_{}", idx), Span::call_site().into());
+                    let ty = field.ty;
+                    let Version {
+                        major,
+                        minor,
+                        patch,
+                        ..
+                    } = parse_attribute(ident.span(), &field.attrs)?;
+                    *highest_version =
+                        match (highest_version.take(), Version::new(major, minor, patch)) {
+                            (None, v) => Some(v),
+                            (Some(v1), v2) => Some(if v1 > v2 { v1 } else { v2 }),
+                        };
+                    field_names.push(ident.clone());
+                    field_serialize.push(quote! {
+                        #ident.serialize(writer)?;
+                    });
+                    field_deserialize.push(quote! {
+                        let #ident: #ty = if version < binver::Version::new(#major, #minor, #patch) {
+                            Default::default()
+                        } else {
+                            binver::Serializable::deserialize(reader)?
+                        };
+                    });
+                }
+
+                Ok(Self {
+                    ser: quote! {
+                        Self:: #ident( #(#field_names, )* ) => {
+                            #index.serialize(writer)?;
+                            #(#field_serialize)*
+                            Ok(())
+                        },
+                    },
+                    de: quote! {
+                        #index if version >= binver::Version::new(#major, #minor, #patch) => {
+                            #(#field_deserialize)*
+                            Self::#ident (
+                                #(#field_names, )*
+                            )
+                        }
+                    },
+                })
             }
             Fields::Unit => {
                 // Either:
