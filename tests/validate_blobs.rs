@@ -36,6 +36,7 @@ pub struct TestVec {
 }
 
 #[test]
+#[cfg(feature = "std")]
 fn test_vec_serialize_deserialize() {
     let config = ReadConfig {
         error_on_trailing_bytes: true,
