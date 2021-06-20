@@ -6,12 +6,7 @@ pub enum Test<'a> {
     Variant1,
 
     #[since(0.0.2)]
-    Variant2(
-        #[since(0.0.3)]
-        &'a str,
-        #[since(0.0.4)]
-        bool,
-    ),
+    Variant2(#[since(0.0.3)] &'a str, #[since(0.0.4)] bool),
 }
 
 #[test]
@@ -25,13 +20,12 @@ fn test_serialize_simple() {
         &[0, 0],                    // Variant 1
         &serialized[..length][6..]  // ignore the version bytes
     );
-    let length =
-        binver::write_to_slice(&mut serialized, &Test::Variant2("Trangar", true)).unwrap();
+    let length = binver::write_to_slice(&mut serialized, &Test::Variant2("Trangar", true)).unwrap();
     assert_eq!(
         vec![
             0, 1, // Variant2
             0, 0, 0, 7, b'T', b'r', b'a', b'n', b'g', b'a', b'r', // name
-            1, // bool
+            1,    // bool
         ],
         &serialized[..length][6..] // ignore the version bytes
     );

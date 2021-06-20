@@ -1,6 +1,6 @@
 extern crate proc_macro;
 
-use proc_macro::{TokenStream, Span};
+use proc_macro::{Span, TokenStream};
 use quote::quote;
 use semver::Version;
 use syn::{
